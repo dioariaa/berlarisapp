@@ -26,8 +26,8 @@ export function LoginPage({
           <img src="/berlaris-logo.png" alt="Berlaris Kopi & Resto" />
         </div>
         <span>BERLARISAPP · KOPI &amp; RESTO</span>
-        <h1>Administrasi karyawan yang lebih tertib dan mudah diaudit.</h1>
-        <p>Kelola data karyawan, pencatatan cuti, ekspor operasional, dan histori perubahan dari satu ruang kerja aman.</p>
+        <h1>Administrasi karyawan.</h1>
+        <p>Kelola data karyawan, pencatatan cuti.</p>
         <div className="login-brand__security"><LockKeyhole size={18} /> Akses terenkripsi dan berbasis peran</div>
       </section>
       <section className="login-card">
