@@ -43,7 +43,6 @@ export function AdminLayout({ children, activePage, onNavigate, user, onLogout }
       <aside className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`} aria-label="Sidebar BerlarisApp">
         <div className="brand">
           <div className="brand__mark">
-            <img src="/berlaris-mark.png" alt="" aria-hidden="true" />
           </div>
           <div>
             <strong>BerlarisApp</strong>
