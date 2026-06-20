@@ -45,7 +45,7 @@ export function AdminLayout({ children, activePage, onNavigate, user, onLogout }
           <div className="brand__mark">
           </div>
           <div>
-            <strong>BerlarisApp</strong>
+            <strong>Berlaris</strong>
             <span>Kopi &amp; Resto · Admin</span>
           </div>
           <button className="icon-button sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
