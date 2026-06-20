@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -10,5 +12,9 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depend
 
 
 @router.get("/summary", response_model=DashboardSummary)
-def dashboard_summary(db: Session = Depends(get_db)) -> DashboardSummary:
-    return get_dashboard_summary(db)
+def dashboard_summary(
+    month: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    year: int = Query(default_factory=lambda: date.today().year, ge=2000, le=2100),
+    db: Session = Depends(get_db),
+) -> DashboardSummary:
+    return get_dashboard_summary(db, month, year)

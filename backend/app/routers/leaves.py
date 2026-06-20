@@ -8,8 +8,15 @@ from sqlalchemy.orm import Session, joinedload
 from ..database import get_db
 from ..audit import model_snapshot, write_audit_log
 from ..models import Employee, EmployeeLeave, LeaveType, User
-from ..schemas import LeaveCreate, LeavePage, LeaveRead, LeaveSummary, LeaveUpdate
-from ..services import create_leave, get_summary, update_leave
+from ..schemas import (
+    EmployeeLeaveAggregate,
+    LeaveCreate,
+    LeavePage,
+    LeaveRead,
+    LeaveSummary,
+    LeaveUpdate,
+)
+from ..services import create_leave, get_leave_aggregates_by_employee, get_summary, update_leave
 from ..security import require_admin
 
 router = APIRouter(prefix="/employee-leaves", tags=["employee-leaves"], dependencies=[Depends(require_admin)])
@@ -25,6 +32,32 @@ def leave_summary(
     db: Session = Depends(get_db),
 ) -> LeaveSummary:
     return get_summary(db, month, year)
+
+
+@router.get("/by-employee", response_model=list[EmployeeLeaveAggregate])
+def leaves_by_employee(
+    month: int | None = Query(default=None, ge=1, le=12),
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    date_from: date | None = None,
+    date_to: date | None = None,
+    employee_id: int | None = Query(default=None, ge=1),
+    include_zero: bool = False,
+    db: Session = Depends(get_db),
+) -> list[EmployeeLeaveAggregate]:
+    if (month is None) != (year is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="month dan year harus dikirim bersamaan.",
+        )
+    return get_leave_aggregates_by_employee(
+        db,
+        month=month,
+        year=year,
+        date_from=date_from,
+        date_to=date_to,
+        employee_id=employee_id,
+        include_zero=include_zero,
+    )
 
 
 @router.get("", response_model=LeavePage)

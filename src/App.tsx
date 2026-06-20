@@ -32,6 +32,7 @@ import {
   type AuthUser,
   LEAVE_TYPES,
   type Employee,
+  type EmployeeLeaveAggregate,
   type DashboardSummary,
   type EmployeeFormValues,
   type LeaveFormValues,
@@ -62,6 +63,11 @@ function App() {
   const [leaves, setLeaves] = useState<LeaveRecord[]>([])
   const [summary, setSummary] = useState<LeaveSummary>(emptySummary)
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null)
+  const [employeeAggregates, setEmployeeAggregates] = useState<EmployeeLeaveAggregate[]>([])
+  const [dashboardLoading, setDashboardLoading] = useState(true)
+  const [dashboardError, setDashboardError] = useState('')
+  const [dashboardMonth, setDashboardMonth] = useState(new Date().getMonth() + 1)
+  const [dashboardYear, setDashboardYear] = useState(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -129,16 +135,14 @@ function App() {
     setLoading(true)
     setError('')
     try {
-      const [employeeData, leaveData, summaryData, dashboardData] = await Promise.all([
+      const [employeeData, leaveData, summaryData] = await Promise.all([
         employeeApi.list(),
         leaveApi.list({ page_size: 100 }),
         leaveApi.summary(selectedPeriod.month, selectedPeriod.year),
-        dashboardApi.summary(),
       ])
       setEmployees(employeeData.items)
       setLeaves(leaveData.items)
       setSummary(summaryData)
-      setDashboard(dashboardData)
     } catch (caught) {
       setError(getErrorMessage(caught))
     } finally {
@@ -149,6 +153,27 @@ function App() {
   useEffect(() => {
     if (currentUser) void loadData()
   }, [currentUser, loadData])
+
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true)
+    setDashboardError('')
+    try {
+      const [dashboardData, aggregateData] = await Promise.all([
+        dashboardApi.summary(dashboardMonth, dashboardYear),
+        leaveApi.byEmployee(dashboardMonth, dashboardYear),
+      ])
+      setDashboard(dashboardData)
+      setEmployeeAggregates(aggregateData)
+    } catch (caught) {
+      setDashboardError(getErrorMessage(caught))
+    } finally {
+      setDashboardLoading(false)
+    }
+  }, [dashboardMonth, dashboardYear])
+
+  useEffect(() => {
+    if (currentUser) void loadDashboard()
+  }, [currentUser, loadDashboard])
 
   const loadUsers = useCallback(async () => {
     setPrivilegedLoading(true)
@@ -184,14 +209,13 @@ function App() {
   }, [currentUser, loadAuditLogs, loadUsers, page])
 
   const refreshLeaves = async () => {
-    const [leaveData, summaryData, dashboardData] = await Promise.all([
+    const [leaveData, summaryData] = await Promise.all([
       leaveApi.list({ page_size: 100 }),
       leaveApi.summary(selectedPeriod.month, selectedPeriod.year),
-      dashboardApi.summary(),
     ])
     setLeaves(leaveData.items)
     setSummary(summaryData)
-    setDashboard(dashboardData)
+    await loadDashboard()
   }
 
   const notify = (message: string, type: 'success' | 'error' = 'success') => {
@@ -289,7 +313,7 @@ function App() {
       else await employeeApi.create(values)
       const employeeData = await employeeApi.list()
       setEmployees(employeeData.items)
-      setDashboard(await dashboardApi.summary())
+      await loadDashboard()
       setEmployeeModal({ open: false, employee: null })
       notify(employeeModal.employee ? 'Data karyawan berhasil diperbarui.' : 'Karyawan berhasil ditambahkan.')
     } catch (caught) {
@@ -304,14 +328,13 @@ function App() {
     setSubmitting(true)
     try {
       await employeeApi.remove(deleteEmployee.id)
-      const [employeeData, leaveData, dashboardData] = await Promise.all([
+      const [employeeData, leaveData] = await Promise.all([
         employeeApi.list(),
         leaveApi.list({ page_size: 100 }),
-        dashboardApi.summary(),
       ])
       setEmployees(employeeData.items)
       setLeaves(leaveData.items)
-      setDashboard(dashboardData)
+      await loadDashboard()
       setDeleteEmployee(null)
       notify('Data karyawan berhasil dihapus.')
     } catch (caught) {
@@ -349,6 +372,7 @@ function App() {
       setEmployees([])
       setLeaves([])
       setDashboard(null)
+      setEmployeeAggregates([])
     }
   }
 
@@ -412,9 +436,21 @@ function App() {
       {page === 'dashboard' ? (
         <DashboardPage
           data={dashboard}
-          loading={loading}
-          error={error}
-          onRetry={() => void loadData()}
+          aggregates={employeeAggregates}
+          loading={dashboardLoading}
+          error={dashboardError}
+          month={dashboardMonth}
+          year={dashboardYear}
+          onPeriodChange={(month, year) => {
+            setDashboardMonth(month)
+            setDashboardYear(year)
+          }}
+          onResetPeriod={() => {
+            const now = new Date()
+            setDashboardMonth(now.getMonth() + 1)
+            setDashboardYear(now.getFullYear())
+          }}
+          onRetry={() => void loadDashboard()}
           onNavigate={navigate}
         />
       ) : page === 'users' ? (

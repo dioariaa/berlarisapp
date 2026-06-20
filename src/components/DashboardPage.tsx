@@ -3,10 +3,12 @@ import {
   CalendarCheck2,
   CalendarDays,
   Clock3,
+  RotateCcw,
   UsersRound,
 } from 'lucide-react'
-import type { DashboardSummary } from '../types'
+import type { DashboardSummary, EmployeeLeaveAggregate } from '../types'
 import { formatDate } from '../utils/date'
+import { EmployeeLeaveRecap } from './EmployeeLeaveRecap'
 import { ErrorState } from './ErrorState'
 import { LeaveBadge } from './LeaveBadge'
 import { LoadingState } from './LoadingState'
@@ -17,18 +19,39 @@ interface Props {
   error: string
   onRetry: () => void
   onNavigate: (page: 'employees' | 'leaves') => void
+  aggregates: EmployeeLeaveAggregate[]
+  month: number
+  year: number
+  onPeriodChange: (month: number, year: number) => void
+  onResetPeriod: () => void
 }
 
-export function DashboardPage({ data, loading, error, onRetry, onNavigate }: Props) {
+const MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
+export function DashboardPage({
+  data,
+  loading,
+  error,
+  onRetry,
+  onNavigate,
+  aggregates,
+  month,
+  year,
+  onPeriodChange,
+  onResetPeriod,
+}: Props) {
   if (loading) return <LoadingState label="Memuat ringkasan operasional..." />
   if (error) return <ErrorState message={error} onRetry={onRetry} />
   if (!data) return null
 
   const cards = [
     { label: 'Karyawan aktif', value: data.total_active_employees, icon: UsersRound, tone: 'blue' },
-    { label: 'Cuti bulan ini', value: data.total_leaves_this_month, icon: CalendarDays, tone: 'violet' },
+    { label: `Cuti ${MONTHS[month - 1]}`, value: data.total_leaves_this_month, icon: CalendarDays, tone: 'violet' },
     { label: 'Sedang cuti hari ini', value: data.employees_on_leave_today, icon: CalendarCheck2, tone: 'green' },
-    { label: 'Hari cuti bulan ini', value: data.total_leave_days_this_month, icon: Clock3, tone: 'orange' },
+    { label: `Hari cuti ${MONTHS[month - 1]}`, value: data.total_leave_days_this_month, icon: Clock3, tone: 'orange' },
   ]
   const isEmpty = data.total_active_employees === 0 && data.total_leaves_this_month === 0
   const maxDistribution = Math.max(1, ...data.leave_distribution.map((item) => item.total))
@@ -38,12 +61,27 @@ export function DashboardPage({ data, loading, error, onRetry, onNavigate }: Pro
       <div className="page-heading dashboard-heading">
         <div>
           <span className="eyebrow">RINGKASAN OPERASIONAL</span>
-          <h1>Dashboard Admin</h1>
-          <p>Pantau kondisi karyawan dan penggunaan cuti dalam satu tampilan.</p>
+          <h1>Ringkasan Cuti {data.period.label}</h1>
+          <p>Pantau kondisi karyawan dan penggunaan cuti berdasarkan periode pilihan.</p>
         </div>
-        <span className="dashboard-period">
-          {new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date())}
-        </span>
+        <div className="dashboard-period-filter">
+          <label>
+            <span>Bulan</span>
+            <select value={month} onChange={(event) => onPeriodChange(Number(event.target.value), year)}>
+              {MONTHS.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Tahun</span>
+            <select value={year} onChange={(event) => onPeriodChange(month, Number(event.target.value))}>
+              {Array.from({ length: 8 }, (_, index) => new Date().getFullYear() - 5 + index)
+                .map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+          <button className="period-reset" onClick={onResetPeriod} title="Kembali ke bulan berjalan">
+            <RotateCcw size={16} /> Reset
+          </button>
+        </div>
       </div>
 
       <section className="dashboard-stats" aria-label="Statistik utama">
@@ -70,7 +108,7 @@ export function DashboardPage({ data, loading, error, onRetry, onNavigate }: Pro
       <section className="dashboard-grid">
         <article className="dashboard-panel">
           <div className="panel-heading">
-            <div><h2>Distribusi Jenis Cuti</h2><p>Jumlah pencatatan pada bulan berjalan</p></div>
+            <div><h2>Distribusi Jenis Cuti</h2><p>Jumlah pencatatan pada {data.period.label}</p></div>
           </div>
           <div className="dashboard-distribution">
             {data.leave_distribution.map((item) => (
@@ -84,7 +122,7 @@ export function DashboardPage({ data, loading, error, onRetry, onNavigate }: Pro
 
         <article className="dashboard-panel">
           <div className="panel-heading">
-            <div><h2>Cuti Terbanyak</h2><p>Akumulasi hari pada bulan berjalan</p></div>
+            <div><h2>Cuti Terbanyak</h2><p>Akumulasi hari pada {data.period.label}</p></div>
           </div>
           {data.top_leave_employees.length ? (
             <ol className="dashboard-ranking">
@@ -100,9 +138,11 @@ export function DashboardPage({ data, loading, error, onRetry, onNavigate }: Pro
         </article>
       </section>
 
+      <EmployeeLeaveRecap data={aggregates} periodLabel={data.period.label} />
+
       <section className="dashboard-panel dashboard-panel--recent">
         <div className="panel-heading">
-          <div><h2>Data Cuti Terbaru</h2><p>Pencatatan yang baru ditambahkan</p></div>
+          <div><h2>Data Cuti Terbaru</h2><p>Pencatatan terbaru pada {data.period.label}</p></div>
           <button className="panel-link" onClick={() => onNavigate('leaves')}>Lihat semua <ArrowRight size={14} /></button>
         </div>
         {data.recent_leaves.length ? (

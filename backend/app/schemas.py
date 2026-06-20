@@ -91,6 +91,21 @@ class TopEmployeeLeave(BaseModel):
     total_days: int
 
 
+class LeaveTypeEmployeeSummary(BaseModel):
+    leave_type: LeaveType
+    total_leaves: int
+    total_days: int
+
+
+class EmployeeLeaveAggregate(BaseModel):
+    employee_id: int
+    employee_name: str
+    department: str
+    total_leaves: int
+    total_days: int
+    leave_types: list[LeaveTypeEmployeeSummary]
+
+
 class LeaveSummary(BaseModel):
     month: int
     year: int
@@ -110,7 +125,14 @@ class RecentLeave(BaseModel):
     total_days: int
 
 
+class DashboardPeriod(BaseModel):
+    month: int
+    year: int
+    label: str
+
+
 class DashboardSummary(BaseModel):
+    period: DashboardPeriod
     total_active_employees: int
     total_leaves_this_month: int
     employees_on_leave_today: int

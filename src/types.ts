@@ -84,6 +84,11 @@ export interface PaginatedResponse<T> {
 }
 
 export interface DashboardSummary {
+  period: {
+    month: number
+    year: number
+    label: string
+  }
   total_active_employees: number
   total_leaves_this_month: number
   employees_on_leave_today: number
@@ -100,6 +105,19 @@ export interface DashboardSummary {
   top_leave_employees: {
     employee_id: number
     employee_name: string
+    total_days: number
+  }[]
+}
+
+export interface EmployeeLeaveAggregate {
+  employee_id: number
+  employee_name: string
+  department: string
+  total_leaves: number
+  total_days: number
+  leave_types: {
+    leave_type: LeaveType
+    total_leaves: number
     total_days: number
   }[]
 }

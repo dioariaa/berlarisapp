@@ -71,11 +71,35 @@ def test_leave_crud_calculates_days_and_blocks_overlap(client, admin_headers):
     assert summary_body["total_hari_cuti_terpakai_bulan_ini"] == 5
     assert summary_body["karyawan_dengan_cuti_terbanyak"][0]["total_days"] == 5
 
-    dashboard = client.get("/dashboard/summary", headers=admin_headers)
+    dashboard = client.get("/dashboard/summary?month=6&year=2026", headers=admin_headers)
     assert dashboard.status_code == 200
     dashboard_body = dashboard.json()
+    assert dashboard_body["period"] == {"month": 6, "year": 2026, "label": "Juni 2026"}
     assert dashboard_body["total_active_employees"] == 1
     assert dashboard_body["recent_leaves"][0]["employee_name"] == "Dimas Saputra"
+
+    by_employee = client.get(
+        "/employee-leaves/by-employee?month=6&year=2026",
+        headers=admin_headers,
+    )
+    assert by_employee.status_code == 200
+    aggregate = by_employee.json()[0]
+    assert aggregate["employee_name"] == "Dimas Saputra"
+    assert aggregate["department"] == "Engineering"
+    assert aggregate["total_leaves"] == 2
+    assert aggregate["total_days"] == 5
+    assert aggregate["leave_types"][0] == {
+        "leave_type": "Cuti Tahunan",
+        "total_leaves": 2,
+        "total_days": 5,
+    }
+
+    empty_period = client.get(
+        "/employee-leaves/by-employee?month=5&year=2026&include_zero=true",
+        headers=admin_headers,
+    )
+    assert empty_period.status_code == 200
+    assert empty_period.json()[0]["total_days"] == 0
 
     updated = client.put(
         f"/employee-leaves/{leave_id}",

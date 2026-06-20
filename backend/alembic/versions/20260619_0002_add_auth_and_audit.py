@@ -16,6 +16,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 user_role_enum = postgresql.ENUM("admin", "superadmin", name="user_role_enum", create_type=False)
+json_document = sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql")
 
 
 def upgrade() -> None:
@@ -45,8 +46,8 @@ def upgrade() -> None:
         sa.Column("action", sa.String(length=80), nullable=False),
         sa.Column("entity_type", sa.String(length=80), nullable=False),
         sa.Column("entity_id", sa.String(length=80), nullable=True),
-        sa.Column("old_values", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("new_values", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("old_values", json_document, nullable=True),
+        sa.Column("new_values", json_document, nullable=True),
         sa.Column("ip_address", sa.String(length=64), nullable=True),
         sa.Column("user_agent", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
