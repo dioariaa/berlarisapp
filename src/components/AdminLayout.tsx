@@ -42,10 +42,12 @@ export function AdminLayout({ children, activePage, onNavigate, user, onLogout }
     <div className="app-shell">
       <aside className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`} aria-label="Sidebar BerlarisApp">
         <div className="brand">
-          <div className="brand__mark">B</div>
+          <div className="brand__mark">
+            <img src="/berlaris-mark.png" alt="" aria-hidden="true" />
+          </div>
           <div>
             <strong>BerlarisApp</strong>
-            <span>Admin Workspace</span>
+            <span>Kopi &amp; Resto · Admin</span>
           </div>
           <button className="icon-button sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
             <X size={20} />
@@ -89,6 +91,7 @@ export function AdminLayout({ children, activePage, onNavigate, user, onLogout }
             <Menu size={22} />
           </button>
           <div className="topbar__context">
+            <img className="topbar__brand-mark" src="/berlaris-mark.png" alt="" aria-hidden="true" />
             <span>BerlarisApp</span>
             <span>/</span>
             <strong>{pageLabel(activePage)}</strong>

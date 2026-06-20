@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -93,7 +94,7 @@ class TopEmployeeLeave(BaseModel):
 
 class LeaveTypeEmployeeSummary(BaseModel):
     leave_type: LeaveType
-    total_leaves: int
+    total_entries: int
     total_days: int
 
 
@@ -101,9 +102,10 @@ class EmployeeLeaveAggregate(BaseModel):
     employee_id: int
     employee_name: str
     department: str
-    total_leaves: int
-    total_days: int
-    leave_types: list[LeaveTypeEmployeeSummary]
+    period_label: str
+    total_leave_entries: int
+    total_leave_days: int
+    leave_type_breakdown: list[LeaveTypeEmployeeSummary]
 
 
 class LeaveSummary(BaseModel):
@@ -126,9 +128,12 @@ class RecentLeave(BaseModel):
 
 
 class DashboardPeriod(BaseModel):
-    month: int
-    year: int
+    type: Literal["monthly", "yearly", "custom"]
+    month: int | None = None
+    year: int | None = None
     label: str
+    date_from: date
+    date_to: date
 
 
 class DashboardSummary(BaseModel):

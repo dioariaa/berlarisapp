@@ -10,29 +10,43 @@ interface Props {
 
 export function EmployeeLeaveRecap({ data, periodLabel }: Props) {
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<'days' | 'name'>('days')
   const filtered = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('id-ID')
-    return term
+    const matching = term
       ? data.filter((item) => item.employee_name.toLocaleLowerCase('id-ID').includes(term))
       : data
-  }, [data, search])
+    return [...matching].sort((left, right) => sort === 'name'
+      ? left.employee_name.localeCompare(right.employee_name, 'id-ID')
+      : right.total_leave_days - left.total_leave_days
+        || left.employee_name.localeCompare(right.employee_name, 'id-ID'))
+  }, [data, search, sort])
 
   return (
     <section className="dashboard-panel employee-recap">
       <div className="panel-heading employee-recap__heading">
         <div>
-          <h2>Rekap Cuti per Karyawan</h2>
-          <p>Akumulasi pencatatan dan hari cuti pada {periodLabel}</p>
+          <h2>Rekap Cuti Karyawan {periodLabel}</h2>
+          <p>Akumulasi pengambilan dan hari cuti berdasarkan irisan periode aktif</p>
         </div>
-        <label className="recap-search">
-          <Search size={16} />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cari nama karyawan"
-            aria-label="Cari rekap nama karyawan"
-          />
-        </label>
+        <div className="recap-tools">
+          <label className="recap-search">
+            <Search size={16} />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Cari nama karyawan"
+              aria-label="Cari rekap nama karyawan"
+            />
+          </label>
+          <label className="recap-sort">
+            <span>Urutkan</span>
+            <select value={sort} onChange={(event) => setSort(event.target.value as 'days' | 'name')}>
+              <option value="days">Hari terbanyak</option>
+              <option value="name">Nama A–Z</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {filtered.length ? (
@@ -42,8 +56,8 @@ export function EmployeeLeaveRecap({ data, periodLabel }: Props) {
               <tr>
                 <th>Nama karyawan</th>
                 <th>Departemen</th>
-                <th>Jumlah cuti</th>
-                <th>Total hari</th>
+                <th>Total pengambilan cuti</th>
+                <th>Total hari cuti</th>
                 <th>Rincian jenis cuti</th>
               </tr>
             </thead>
@@ -52,14 +66,14 @@ export function EmployeeLeaveRecap({ data, periodLabel }: Props) {
                 <tr key={item.employee_id}>
                   <td data-label="Nama karyawan"><strong>{item.employee_name}</strong></td>
                   <td data-label="Departemen">{item.department}</td>
-                  <td data-label="Jumlah cuti">{item.total_leaves} kali</td>
-                  <td data-label="Total hari"><strong className="recap-days">{item.total_days} hari</strong></td>
+                  <td data-label="Total pengambilan">{item.total_leave_entries} kali</td>
+                  <td data-label="Total hari"><strong className="recap-days">{item.total_leave_days} hari</strong></td>
                   <td data-label="Rincian jenis cuti">
                     <div className="recap-types">
-                      {item.leave_types.map((type) => (
+                      {item.leave_type_breakdown.map((type) => (
                         <span className="recap-type" key={type.leave_type}>
                           <LeaveBadge type={type.leave_type} />
-                          <small>{type.total_leaves}× · {type.total_days} hari</small>
+                          <small>{type.total_entries}× · {type.total_days} hari</small>
                         </span>
                       ))}
                     </div>

@@ -6,6 +6,7 @@ import type {
   EmployeeFormValues,
   DashboardSummary,
   EmployeeLeaveAggregate,
+  AnalyticsPeriod,
   LeaveFormValues,
   LeaveRecord,
   LeaveSummary,
@@ -163,9 +164,9 @@ export const leaveApi = {
   get: (id: number) => request<LeaveRecord>(`/employee-leaves/${id}`),
   summary: (month: number, year: number) =>
     request<LeaveSummary>(`/employee-leaves/summary${queryString({ month, year })}`),
-  byEmployee: (month: number, year: number, employee_id?: number, include_zero = false) =>
+  byEmployee: (period: AnalyticsPeriod, employee_id?: number, include_zero = false) =>
     request<EmployeeLeaveAggregate[]>(
-      `/employee-leaves/by-employee${queryString({ month, year, employee_id, include_zero })}`,
+      `/employee-leaves/by-employee${queryString({ ...period, employee_id, include_zero })}`,
     ),
   create: (payload: LeaveFormValues) =>
     request<LeaveRecord>('/employee-leaves', { method: 'POST', body: JSON.stringify(payload) }),
@@ -176,8 +177,8 @@ export const leaveApi = {
 }
 
 export const dashboardApi = {
-  summary: (month: number, year: number) =>
-    request<DashboardSummary>(`/dashboard/summary${queryString({ month, year })}`),
+  summary: (period: AnalyticsPeriod) =>
+    request<DashboardSummary>(`/dashboard/summary${queryString(period)}`),
 }
 
 export const authApi = {

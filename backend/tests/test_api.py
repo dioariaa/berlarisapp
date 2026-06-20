@@ -71,35 +71,46 @@ def test_leave_crud_calculates_days_and_blocks_overlap(client, admin_headers):
     assert summary_body["total_hari_cuti_terpakai_bulan_ini"] == 5
     assert summary_body["karyawan_dengan_cuti_terbanyak"][0]["total_days"] == 5
 
-    dashboard = client.get("/dashboard/summary?month=6&year=2026", headers=admin_headers)
+    dashboard = client.get(
+        "/dashboard/summary?period_type=monthly&month=6&year=2026",
+        headers=admin_headers,
+    )
     assert dashboard.status_code == 200
     dashboard_body = dashboard.json()
-    assert dashboard_body["period"] == {"month": 6, "year": 2026, "label": "Juni 2026"}
+    assert dashboard_body["period"] == {
+        "type": "monthly",
+        "month": 6,
+        "year": 2026,
+        "label": "Juni 2026",
+        "date_from": "2026-06-01",
+        "date_to": "2026-06-30",
+    }
     assert dashboard_body["total_active_employees"] == 1
     assert dashboard_body["recent_leaves"][0]["employee_name"] == "Dimas Saputra"
 
     by_employee = client.get(
-        "/employee-leaves/by-employee?month=6&year=2026",
+        "/employee-leaves/by-employee?period_type=monthly&month=6&year=2026",
         headers=admin_headers,
     )
     assert by_employee.status_code == 200
     aggregate = by_employee.json()[0]
     assert aggregate["employee_name"] == "Dimas Saputra"
     assert aggregate["department"] == "Engineering"
-    assert aggregate["total_leaves"] == 2
-    assert aggregate["total_days"] == 5
-    assert aggregate["leave_types"][0] == {
+    assert aggregate["period_label"] == "Juni 2026"
+    assert aggregate["total_leave_entries"] == 2
+    assert aggregate["total_leave_days"] == 5
+    assert aggregate["leave_type_breakdown"][0] == {
         "leave_type": "Cuti Tahunan",
-        "total_leaves": 2,
+        "total_entries": 2,
         "total_days": 5,
     }
 
     empty_period = client.get(
-        "/employee-leaves/by-employee?month=5&year=2026&include_zero=true",
+        "/employee-leaves/by-employee?period_type=monthly&month=5&year=2026&include_zero=true",
         headers=admin_headers,
     )
     assert empty_period.status_code == 200
-    assert empty_period.json()[0]["total_days"] == 0
+    assert empty_period.json()[0]["total_leave_days"] == 0
 
     updated = client.put(
         f"/employee-leaves/{leave_id}",
@@ -109,6 +120,51 @@ def test_leave_crud_calculates_days_and_blocks_overlap(client, admin_headers):
     assert updated.json()["total_days"] == 1
 
     assert client.delete(f"/employee-leaves/{leave_id}", headers=admin_headers).status_code == 204
+
+
+def test_yearly_recap_clips_cross_year_leave(client, admin_headers):
+    employee = client.post(
+        "/employees",
+        json=employee_payload("Lintas Tahun"),
+        headers=admin_headers,
+    ).json()
+    created = client.post(
+        "/employee-leaves",
+        json={
+            "employee_id": employee["id"],
+            "leave_type": "Cuti Tahunan",
+            "start_date": "2026-12-30",
+            "end_date": "2027-01-03",
+            "description": "Cuti akhir tahun",
+        },
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+
+    recap_2026 = client.get(
+        "/employee-leaves/by-employee?period_type=yearly&year=2026",
+        headers=admin_headers,
+    )
+    recap_2027 = client.get(
+        "/employee-leaves/by-employee?period_type=yearly&year=2027",
+        headers=admin_headers,
+    )
+    assert recap_2026.json()[0]["total_leave_days"] == 2
+    assert recap_2027.json()[0]["total_leave_days"] == 3
+
+    custom = client.get(
+        "/employee-leaves/by-employee"
+        "?period_type=custom&date_from=2027-01-02&date_to=2027-01-03",
+        headers=admin_headers,
+    )
+    assert custom.status_code == 200
+    assert custom.json()[0]["total_leave_days"] == 2
+
+    missing_custom_dates = client.get(
+        "/employee-leaves/by-employee?period_type=custom",
+        headers=admin_headers,
+    )
+    assert missing_custom_dates.status_code == 422
 
 
 def test_rejects_invalid_employee_and_date_range(client, admin_headers):

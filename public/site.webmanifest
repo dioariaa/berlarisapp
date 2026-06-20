@@ -1,0 +1,21 @@
+{
+  "name": "BerlarisApp",
+  "short_name": "BerlarisApp",
+  "description": "Administrasi karyawan Berlaris Kopi & Resto",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8F3ED",
+  "theme_color": "#4B2E1E",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/berlaris-logo.png",
+      "sizes": "536x541",
+      "type": "image/png"
+    }
+  ]
+}

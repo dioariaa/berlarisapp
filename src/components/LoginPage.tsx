@@ -22,14 +22,17 @@ export function LoginPage({
   return (
     <main className="login-page">
       <section className="login-brand">
-        <div className="login-brand__mark">B</div>
-        <span>BERLARISAPP</span>
+        <div className="login-brand__logo">
+          <img src="/berlaris-logo.png" alt="Berlaris Kopi & Resto" />
+        </div>
+        <span>BERLARISAPP · KOPI &amp; RESTO</span>
         <h1>Administrasi karyawan yang lebih tertib dan mudah diaudit.</h1>
         <p>Kelola data karyawan, pencatatan cuti, ekspor operasional, dan histori perubahan dari satu ruang kerja aman.</p>
         <div className="login-brand__security"><LockKeyhole size={18} /> Akses terenkripsi dan berbasis peran</div>
       </section>
       <section className="login-card">
         <div className="login-card__header">
+          <img className="login-card__logo" src="/berlaris-mark.png" alt="Logo Berlaris" />
           <span>BERLARISAPP ADMIN</span>
           <h2>Masuk ke akun Anda</h2>
           <p>Gunakan kredensial admin yang telah diberikan superadmin.</p>

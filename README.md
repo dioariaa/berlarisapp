@@ -1,5 +1,9 @@
 # BerlarisApp
 
+<p align="center">
+  <img src="public/berlaris-logo.png" alt="Berlaris Kopi & Resto" width="180" />
+</p>
+
 BerlarisApp adalah aplikasi admin full-stack untuk pengelolaan karyawan dan pencatatan cuti langsung. Sistem tidak memiliki workflow pengajuan atau approval.
 
 Repository tujuan: [github.com/dioariaa/berlarisapp](https://github.com/dioariaa/berlarisapp)
@@ -218,6 +222,17 @@ Export cuti mendukung `month`, `year`, `date_from`, `date_to`, `employee_id`, da
 - `PUT|DELETE /users/{id}` — superadmin
 
 Endpoint dashboard, karyawan, cuti, dan export wajib Bearer token.
+
+## Analitik dan rekap cuti
+
+Dashboard dan rekap karyawan menggunakan periode yang sama:
+
+- Tahunan: `GET /dashboard/summary?period_type=yearly&year=2026`
+- Bulanan: `GET /dashboard/summary?period_type=monthly&month=6&year=2026`
+- Rentang tanggal: `GET /dashboard/summary?period_type=custom&date_from=2026-01-01&date_to=2026-06-30`
+- Rekap karyawan: `GET /employee-leaves/by-employee` dengan query periode yang sama
+
+Tambahkan `include_zero=true` pada endpoint rekap untuk menyertakan seluruh karyawan aktif yang belum memiliki cuti. Jumlah hari dihitung berdasarkan irisan tanggal cuti dengan periode aktif, termasuk cuti yang melintasi bulan atau tahun.
 
 ## Deployment HTTPS
 

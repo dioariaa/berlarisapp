@@ -177,35 +177,55 @@ def get_summary(db: Session, month: int, year: int) -> LeaveSummary:
     )
 
 
-def _period_bounds(
+MONTH_LABELS = (
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+)
+
+
+def resolve_period(
+    period_type: str,
     month: int | None = None,
     year: int | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
-) -> tuple[date, date]:
-    today = date.today()
-    selected_month = month or today.month
-    selected_year = year or today.year
-    if date_from or date_to:
-        period_start = date_from or date.min
-        period_end = date_to or date.max
-    else:
-        period_start = date(selected_year, selected_month, 1)
-        period_end = date(
-            selected_year,
-            selected_month,
-            calendar.monthrange(selected_year, selected_month)[1],
+) -> tuple[date, date, str]:
+    if period_type == "monthly":
+        if month is None or year is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="month dan year wajib untuk periode bulanan.",
+            )
+        period_start = date(year, month, 1)
+        period_end = date(year, month, calendar.monthrange(year, month)[1])
+        return period_start, period_end, f"{MONTH_LABELS[month - 1]} {year}"
+    if period_type == "yearly":
+        if year is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="year wajib untuk periode tahunan.",
+            )
+        return date(year, 1, 1), date(year, 12, 31), f"Tahun {year}"
+    if date_from is None or date_to is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="date_from dan date_to wajib untuk rentang tanggal.",
         )
-    if period_end < period_start:
+    if date_to < date_from:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="date_to tidak boleh lebih kecil dari date_from.",
         )
-    return period_start, period_end
+    label = (
+        f"{date_from.strftime('%d-%m-%Y')} s.d. "
+        f"{date_to.strftime('%d-%m-%Y')}"
+    )
+    return date_from, date_to, label
 
 
 def get_leave_aggregates_by_employee(
     db: Session,
+    period_type: str,
     month: int | None = None,
     year: int | None = None,
     date_from: date | None = None,
@@ -213,7 +233,9 @@ def get_leave_aggregates_by_employee(
     employee_id: int | None = None,
     include_zero: bool = False,
 ) -> list[EmployeeLeaveAggregate]:
-    period_start, period_end = _period_bounds(month, year, date_from, date_to)
+    period_start, period_end, period_label = resolve_period(
+        period_type, month, year, date_from, date_to
+    )
     statement = (
         select(EmployeeLeave)
         .options(joinedload(EmployeeLeave.employee))
@@ -235,19 +257,19 @@ def get_leave_aggregates_by_employee(
             leave.employee_id,
             {
                 "employee": leave.employee,
-                "total_leaves": 0,
+                "total_entries": 0,
                 "total_days": 0,
-                "types": defaultdict(lambda: {"total_leaves": 0, "total_days": 0}),
+                "types": defaultdict(lambda: {"total_entries": 0, "total_days": 0}),
             },
         )
-        employee_data["total_leaves"] += 1
+        employee_data["total_entries"] += 1
         employee_data["total_days"] += days
         type_data = employee_data["types"][leave.leave_type]
-        type_data["total_leaves"] += 1
+        type_data["total_entries"] += 1
         type_data["total_days"] += days
 
     if include_zero:
-        employee_statement = select(Employee)
+        employee_statement = select(Employee).where(Employee.status_aktif.is_(True))
         if employee_id is not None:
             employee_statement = employee_statement.where(Employee.id == employee_id)
         for employee in db.scalars(employee_statement).all():
@@ -255,7 +277,7 @@ def get_leave_aggregates_by_employee(
                 employee.id,
                 {
                     "employee": employee,
-                    "total_leaves": 0,
+                    "total_entries": 0,
                     "total_days": 0,
                     "types": {},
                 },
@@ -267,7 +289,7 @@ def get_leave_aggregates_by_employee(
         leave_types = [
             LeaveTypeEmployeeSummary(
                 leave_type=leave_type,
-                total_leaves=values["total_leaves"],
+                total_entries=values["total_entries"],
                 total_days=values["total_days"],
             )
             for leave_type, values in sorted(
@@ -280,28 +302,80 @@ def get_leave_aggregates_by_employee(
                 employee_id=employee.id,
                 employee_name=employee.nama,
                 department=employee.departemen,
-                total_leaves=item["total_leaves"],
-                total_days=item["total_days"],
-                leave_types=leave_types,
+                period_label=period_label,
+                total_leave_entries=item["total_entries"],
+                total_leave_days=item["total_days"],
+                leave_type_breakdown=leave_types,
             )
         )
-    return sorted(result, key=lambda item: (-item.total_days, item.employee_name.casefold()))
+    return sorted(
+        result,
+        key=lambda item: (-item.total_leave_days, item.employee_name.casefold()),
+    )
 
 
-def get_dashboard_summary(db: Session, month: int, year: int) -> DashboardSummary:
+def get_dashboard_summary(
+    db: Session,
+    period_type: str,
+    month: int | None = None,
+    year: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> DashboardSummary:
     today = date.today()
-    leave_summary = get_summary(db, month, year)
-    month_start, month_end = _period_bounds(month, year)
+    period_start, period_end, period_label = resolve_period(
+        period_type, month, year, date_from, date_to
+    )
     active_employees = (
         db.scalar(select(func.count(Employee.id)).where(Employee.status_aktif.is_(True))) or 0
     )
+    period_rows = list(
+        db.scalars(
+            select(EmployeeLeave)
+            .options(joinedload(EmployeeLeave.employee))
+            .where(
+                EmployeeLeave.start_date <= period_end,
+                EmployeeLeave.end_date >= period_start,
+            )
+        ).all()
+    )
+    type_map: Counter[LeaveType] = Counter()
+    employee_days: defaultdict[tuple[int, str], int] = defaultdict(int)
+    total_days = 0
+    for leave in period_rows:
+        clipped_start = max(leave.start_date, period_start)
+        clipped_end = min(leave.end_date, period_end)
+        days = calculate_total_days(clipped_start, clipped_end)
+        total_days += days
+        type_map[leave.leave_type] += 1
+        employee_days[(leave.employee_id, leave.employee.nama)] += days
+
+    active_today = (
+        db.scalar(
+            select(func.count(func.distinct(EmployeeLeave.employee_id))).where(
+                EmployeeLeave.start_date <= today,
+                EmployeeLeave.end_date >= today,
+            )
+        )
+        or 0
+    )
+    type_counts = [
+        LeaveTypeCount(leave_type=leave_type, total=type_map.get(leave_type, 0))
+        for leave_type in LeaveType
+    ]
+    top_employees = [
+        TopEmployeeLeave(employee_id=employee_id, employee_name=name, total_days=days)
+        for (employee_id, name), days in sorted(
+            employee_days.items(), key=lambda item: (-item[1], item[0][1])
+        )[:5]
+    ]
     recent_rows = list(
         db.scalars(
             select(EmployeeLeave)
             .options(joinedload(EmployeeLeave.employee))
             .where(
-                EmployeeLeave.start_date <= month_end,
-                EmployeeLeave.end_date >= month_start,
+                EmployeeLeave.start_date <= period_end,
+                EmployeeLeave.end_date >= period_start,
             )
             .order_by(EmployeeLeave.created_at.desc(), EmployeeLeave.id.desc())
             .limit(8)
@@ -318,21 +392,20 @@ def get_dashboard_summary(db: Session, month: int, year: int) -> DashboardSummar
         )
         for leave in recent_rows
     ]
-    month_labels = (
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-    )
     return DashboardSummary(
         period=DashboardPeriod(
-            month=month,
-            year=year,
-            label=f"{month_labels[month - 1]} {year}",
+            type=period_type,
+            month=month if period_type == "monthly" else None,
+            year=year if period_type in {"monthly", "yearly"} else None,
+            label=period_label,
+            date_from=period_start,
+            date_to=period_end,
         ),
         total_active_employees=active_employees,
-        total_leaves_this_month=leave_summary.total_cuti_bulan_ini,
-        employees_on_leave_today=leave_summary.karyawan_sedang_cuti_hari_ini,
-        total_leave_days_this_month=leave_summary.total_hari_cuti_terpakai_bulan_ini,
-        leave_distribution=leave_summary.jumlah_per_jenis_cuti,
+        total_leaves_this_month=len(period_rows),
+        employees_on_leave_today=active_today,
+        total_leave_days_this_month=total_days,
+        leave_distribution=type_counts,
         recent_leaves=recent_leaves,
-        top_leave_employees=leave_summary.karyawan_dengan_cuti_terbanyak,
+        top_leave_employees=top_employees,
     )

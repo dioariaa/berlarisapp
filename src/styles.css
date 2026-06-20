@@ -2088,6 +2088,79 @@ a,
   color: #d8c4b1;
 }
 
+/* Berlaris Kopi & Resto brand identity */
+.brand__mark {
+  padding: 3px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: #fffaf5;
+}
+
+.brand__mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.topbar__brand-mark {
+  width: 27px;
+  height: 27px;
+  padding: 2px;
+  border: 1px solid #e2d3c3;
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+  box-shadow: 0 2px 7px rgb(75 46 30 / 8%);
+}
+
+.login-brand__logo {
+  display: grid;
+  width: 176px;
+  min-height: 176px;
+  margin-bottom: 22px;
+  padding: 8px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 48px rgb(43 27 18 / 25%);
+}
+
+.login-brand__logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.login-card__logo {
+  display: none;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 15px;
+  padding: 4px;
+  border: 1px solid #e2d3c3;
+  border-radius: 16px;
+  background: #fffaf5;
+  object-fit: contain;
+}
+
+@media (max-width: 760px) {
+  .topbar__brand-mark {
+    width: 25px;
+    height: 25px;
+  }
+
+  .login-card__logo {
+    display: block;
+  }
+
+  .login-card__header {
+    text-align: center;
+  }
+}
+
 .login-card {
   border-color: #e2d3c3;
   box-shadow: 0 24px 64px rgb(75 46 30 / 13%);
@@ -2122,7 +2195,8 @@ a,
   text-transform: uppercase;
 }
 
-.dashboard-period-filter select {
+.dashboard-period-filter select,
+.dashboard-period-filter input {
   min-width: 112px;
   height: 38px;
   padding: 0 30px 0 11px;
@@ -2132,6 +2206,15 @@ a,
   background: #fff;
   font-size: 11px;
   font-weight: 600;
+}
+
+.dashboard-period-filter input {
+  min-width: 135px;
+  padding-right: 10px;
+}
+
+.dashboard-period-filter .period-mode select {
+  min-width: 135px;
 }
 
 .dashboard-period-filter label:nth-child(2) select {
@@ -2169,6 +2252,12 @@ a,
   padding: 22px 22px 18px;
 }
 
+.recap-tools {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .recap-search {
   display: flex;
   align-items: center;
@@ -2180,6 +2269,29 @@ a,
   color: #8d7766;
   background: #fff;
   gap: 8px;
+}
+
+.recap-sort {
+  display: grid;
+  gap: 5px;
+}
+
+.recap-sort > span {
+  color: #7b6a5d;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.recap-sort select {
+  height: 39px;
+  padding: 0 29px 0 10px;
+  border: 1px solid #d9c5b2;
+  border-radius: 8px;
+  color: #4b2e1e;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .recap-search:focus-within {
@@ -2305,8 +2417,13 @@ a,
     flex-direction: column;
   }
 
-  .recap-search {
+  .recap-tools {
     width: 100%;
+  }
+
+  .recap-search {
+    width: auto;
+    flex: 1;
   }
 }
 
@@ -2354,6 +2471,15 @@ a,
   .period-reset {
     width: 100%;
     justify-content: center;
+  }
+
+  .recap-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recap-sort select {
+    width: 100%;
   }
 }
 
@@ -2979,4 +3105,176 @@ textarea:focus-visible {
   .login-page {
     padding: 18px 0;
   }
+}
+
+/* Final brown theme overrides: keep this block last in the cascade. */
+:root {
+  --primary: #7a4e2d;
+  --primary-dark: #4b2e1e;
+  --primary-soft: #f4e9dc;
+  --border: #e2d3c3;
+  --muted: #6b5a4d;
+  --surface-subtle: #fbf8f4;
+  --sidebar: #4b2e1e;
+  --shadow-sm: 0 1px 2px rgb(75 46 30 / 5%);
+  --shadow-card: 0 1px 3px rgb(75 46 30 / 7%), 0 10px 28px rgb(75 46 30 / 5%);
+}
+
+html,
+body {
+  background: #f8f3ed;
+}
+
+body {
+  color: #2b1b12;
+  background:
+    radial-gradient(circle at 88% 0%, rgb(214 161 93 / 10%), transparent 28rem),
+    #f8f3ed;
+}
+
+.sidebar {
+  color: #eadfd4;
+  background:
+    radial-gradient(circle at 10% 0%, rgb(214 161 93 / 19%), transparent 18rem),
+    linear-gradient(180deg, #4b2e1e 0%, #342015 100%);
+  box-shadow: 12px 0 32px rgb(75 46 30 / 12%);
+}
+
+.brand__mark,
+.login-brand__mark {
+  background: linear-gradient(145deg, #d6a15d, #9a6338);
+  box-shadow: 0 8px 22px rgb(43 27 18 / 30%);
+}
+
+.nav-item {
+  color: #cfbba9;
+}
+
+.nav-item:hover {
+  color: #fffaf5;
+  background: rgb(255 255 255 / 8%);
+}
+
+.nav-item--active {
+  color: #fff;
+  background: linear-gradient(90deg, rgb(214 161 93 / 26%), rgb(214 161 93 / 8%));
+  box-shadow: inset 3px 0 #d6a15d;
+}
+
+.sidebar__footer {
+  background: rgb(52 32 21 / 90%);
+}
+
+.topbar {
+  border-bottom-color: rgb(226 211 195 / 88%);
+  background: rgb(255 252 248 / 90%);
+}
+
+.page-heading h1,
+.panel-heading h2,
+.data-card__header h2,
+.topbar__context strong,
+.topbar-user strong {
+  color: #2b1b12;
+}
+
+.page-heading p,
+.panel-heading p,
+.topbar__date {
+  color: #6b5a4d;
+}
+
+.eyebrow,
+.panel-link,
+.login-card__header > span {
+  color: #7a4e2d;
+}
+
+.button--primary {
+  background: linear-gradient(180deg, #8b5a35, #7a4e2d);
+  box-shadow: 0 1px 2px rgb(75 46 30 / 10%), 0 7px 16px rgb(122 78 45 / 18%);
+}
+
+.button--primary:hover {
+  background: linear-gradient(180deg, #7a4e2d, #4b2e1e);
+}
+
+.dashboard-stat,
+.summary-card,
+.dashboard-panel,
+.data-card,
+.login-card {
+  border-color: #eadfd4;
+  box-shadow: var(--shadow-card);
+}
+
+.dashboard-stat::after {
+  background: rgb(184 137 91 / 7%);
+}
+
+.dashboard-stat__icon--blue,
+.dashboard-stat__icon--violet {
+  color: #7a4e2d;
+  background: #f4e9dc;
+}
+
+.dashboard-stat__icon--orange {
+  color: #9b642e;
+  background: #fff3df;
+}
+
+.distribution-row > span i,
+.type-bar div i {
+  background: linear-gradient(90deg, #b8895b, #d6a15d);
+}
+
+.filter-control:focus-within,
+.range-filters:focus-within,
+.recap-search:focus-within {
+  border-color: #b8895b;
+  box-shadow: 0 0 0 3px rgb(122 78 45 / 10%);
+}
+
+.leave-table th,
+.data-table th {
+  color: #6b5a4d;
+  background: #f8f3ed;
+}
+
+.leave-table tbody tr:hover,
+.data-table tbody tr:hover {
+  background: #fdf9f5;
+}
+
+.leave-badge--annual {
+  color: #704425;
+  background: #f3e3d2;
+}
+
+.leave-badge--permission {
+  color: #8b591f;
+  background: #fff0d7;
+}
+
+.leave-badge--special {
+  color: #6d4a30;
+  background: #eee2d8;
+}
+
+.login-page {
+  color: #2b1b12;
+  background: #f8f3ed;
+}
+
+.login-brand {
+  background:
+    radial-gradient(circle at 18% 15%, rgb(214 161 93 / 28%), transparent 25rem),
+    radial-gradient(circle at 90% 80%, rgb(184 137 91 / 16%), transparent 20rem),
+    linear-gradient(145deg, #4b2e1e, #2b1b12);
+}
+
+.login-brand > span,
+.login-brand p,
+.login-brand__security {
+  color: #d8c4b1;
 }

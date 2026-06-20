@@ -6,7 +6,7 @@ import {
   RotateCcw,
   UsersRound,
 } from 'lucide-react'
-import type { DashboardSummary, EmployeeLeaveAggregate } from '../types'
+import type { AnalyticsPeriod, DashboardSummary, EmployeeLeaveAggregate, PeriodType } from '../types'
 import { formatDate } from '../utils/date'
 import { EmployeeLeaveRecap } from './EmployeeLeaveRecap'
 import { ErrorState } from './ErrorState'
@@ -20,9 +20,8 @@ interface Props {
   onRetry: () => void
   onNavigate: (page: 'employees' | 'leaves') => void
   aggregates: EmployeeLeaveAggregate[]
-  month: number
-  year: number
-  onPeriodChange: (month: number, year: number) => void
+  period: AnalyticsPeriod
+  onPeriodChange: (period: AnalyticsPeriod) => void
   onResetPeriod: () => void
 }
 
@@ -38,8 +37,7 @@ export function DashboardPage({
   onRetry,
   onNavigate,
   aggregates,
-  month,
-  year,
+  period,
   onPeriodChange,
   onResetPeriod,
 }: Props) {
@@ -49,9 +47,9 @@ export function DashboardPage({
 
   const cards = [
     { label: 'Karyawan aktif', value: data.total_active_employees, icon: UsersRound, tone: 'blue' },
-    { label: `Cuti ${MONTHS[month - 1]}`, value: data.total_leaves_this_month, icon: CalendarDays, tone: 'violet' },
+    { label: `Pengambilan cuti · ${data.period.label}`, value: data.total_leaves_this_month, icon: CalendarDays, tone: 'violet' },
     { label: 'Sedang cuti hari ini', value: data.employees_on_leave_today, icon: CalendarCheck2, tone: 'green' },
-    { label: `Hari cuti ${MONTHS[month - 1]}`, value: data.total_leave_days_this_month, icon: Clock3, tone: 'orange' },
+    { label: `Hari cuti · ${data.period.label}`, value: data.total_leave_days_this_month, icon: Clock3, tone: 'orange' },
   ]
   const isEmpty = data.total_active_employees === 0 && data.total_leaves_this_month === 0
   const maxDistribution = Math.max(1, ...data.leave_distribution.map((item) => item.total))
@@ -65,20 +63,81 @@ export function DashboardPage({
           <p>Pantau kondisi karyawan dan penggunaan cuti berdasarkan periode pilihan.</p>
         </div>
         <div className="dashboard-period-filter">
-          <label>
-            <span>Bulan</span>
-            <select value={month} onChange={(event) => onPeriodChange(Number(event.target.value), year)}>
-              {MONTHS.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+          <label className="period-mode">
+            <span>Mode periode</span>
+            <select
+              value={period.period_type}
+              onChange={(event) => {
+                const type = event.target.value as PeriodType
+                const now = new Date()
+                if (type === 'monthly') {
+                  onPeriodChange({
+                    period_type: type,
+                    month: now.getMonth() + 1,
+                    year: now.getFullYear(),
+                  })
+                } else if (type === 'yearly') {
+                  onPeriodChange({ period_type: type, year: now.getFullYear() })
+                } else {
+                  onPeriodChange({
+                    period_type: type,
+                    date_from: `${now.getFullYear()}-01-01`,
+                    date_to: now.toISOString().slice(0, 10),
+                  })
+                }
+              }}
+            >
+              <option value="monthly">Bulanan</option>
+              <option value="yearly">Tahunan</option>
+              <option value="custom">Rentang tanggal</option>
             </select>
           </label>
-          <label>
-            <span>Tahun</span>
-            <select value={year} onChange={(event) => onPeriodChange(month, Number(event.target.value))}>
-              {Array.from({ length: 8 }, (_, index) => new Date().getFullYear() - 5 + index)
-                .map((value) => <option key={value}>{value}</option>)}
-            </select>
-          </label>
-          <button className="period-reset" onClick={onResetPeriod} title="Kembali ke bulan berjalan">
+          {period.period_type === 'monthly' && (
+            <label>
+              <span>Bulan</span>
+              <select
+                value={period.month}
+                onChange={(event) => onPeriodChange({ ...period, month: Number(event.target.value) })}
+              >
+                {MONTHS.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+              </select>
+            </label>
+          )}
+          {period.period_type !== 'custom' && (
+            <label>
+              <span>Tahun</span>
+              <select
+                value={period.year}
+                onChange={(event) => onPeriodChange({ ...period, year: Number(event.target.value) })}
+              >
+                {Array.from({ length: 10 }, (_, index) => new Date().getFullYear() - 7 + index)
+                  .map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </label>
+          )}
+          {period.period_type === 'custom' && (
+            <>
+              <label>
+                <span>Dari tanggal</span>
+                <input
+                  type="date"
+                  value={period.date_from}
+                  max={period.date_to}
+                  onChange={(event) => onPeriodChange({ ...period, date_from: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>Sampai tanggal</span>
+                <input
+                  type="date"
+                  value={period.date_to}
+                  min={period.date_from}
+                  onChange={(event) => onPeriodChange({ ...period, date_to: event.target.value })}
+                />
+              </label>
+            </>
+          )}
+          <button className="period-reset" onClick={onResetPeriod} title="Kembali ke tahun berjalan">
             <RotateCcw size={16} /> Reset
           </button>
         </div>
@@ -134,7 +193,7 @@ export function DashboardPage({
                 </li>
               ))}
             </ol>
-          ) : <PanelEmpty text="Belum ada penggunaan cuti pada bulan ini." />}
+          ) : <PanelEmpty text="Belum ada penggunaan cuti pada periode ini." />}
         </article>
       </section>
 

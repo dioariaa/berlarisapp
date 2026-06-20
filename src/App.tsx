@@ -29,6 +29,7 @@ import {
 } from './services/api'
 import {
   type AuditLog,
+  type AnalyticsPeriod,
   type AuthUser,
   LEAVE_TYPES,
   type Employee,
@@ -66,8 +67,10 @@ function App() {
   const [employeeAggregates, setEmployeeAggregates] = useState<EmployeeLeaveAggregate[]>([])
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [dashboardError, setDashboardError] = useState('')
-  const [dashboardMonth, setDashboardMonth] = useState(new Date().getMonth() + 1)
-  const [dashboardYear, setDashboardYear] = useState(new Date().getFullYear())
+  const [dashboardPeriod, setDashboardPeriod] = useState<AnalyticsPeriod>({
+    period_type: 'yearly',
+    year: new Date().getFullYear(),
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -159,8 +162,8 @@ function App() {
     setDashboardError('')
     try {
       const [dashboardData, aggregateData] = await Promise.all([
-        dashboardApi.summary(dashboardMonth, dashboardYear),
-        leaveApi.byEmployee(dashboardMonth, dashboardYear),
+        dashboardApi.summary(dashboardPeriod),
+        leaveApi.byEmployee(dashboardPeriod),
       ])
       setDashboard(dashboardData)
       setEmployeeAggregates(aggregateData)
@@ -169,7 +172,7 @@ function App() {
     } finally {
       setDashboardLoading(false)
     }
-  }, [dashboardMonth, dashboardYear])
+  }, [dashboardPeriod])
 
   useEffect(() => {
     if (currentUser) void loadDashboard()
@@ -439,17 +442,12 @@ function App() {
           aggregates={employeeAggregates}
           loading={dashboardLoading}
           error={dashboardError}
-          month={dashboardMonth}
-          year={dashboardYear}
-          onPeriodChange={(month, year) => {
-            setDashboardMonth(month)
-            setDashboardYear(year)
-          }}
-          onResetPeriod={() => {
-            const now = new Date()
-            setDashboardMonth(now.getMonth() + 1)
-            setDashboardYear(now.getFullYear())
-          }}
+          period={dashboardPeriod}
+          onPeriodChange={setDashboardPeriod}
+          onResetPeriod={() => setDashboardPeriod({
+            period_type: 'yearly',
+            year: new Date().getFullYear(),
+          })}
           onRetry={() => void loadDashboard()}
           onNavigate={navigate}
         />

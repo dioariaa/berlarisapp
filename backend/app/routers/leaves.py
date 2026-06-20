@@ -1,5 +1,6 @@
 from datetime import date
 import math
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import func, or_, select
@@ -36,21 +37,18 @@ def leave_summary(
 
 @router.get("/by-employee", response_model=list[EmployeeLeaveAggregate])
 def leaves_by_employee(
+    period_type: Literal["monthly", "yearly", "custom"] = "yearly",
     month: int | None = Query(default=None, ge=1, le=12),
-    year: int | None = Query(default=None, ge=2000, le=2100),
+    year: int | None = Query(default_factory=lambda: date.today().year, ge=2000, le=2100),
     date_from: date | None = None,
     date_to: date | None = None,
     employee_id: int | None = Query(default=None, ge=1),
     include_zero: bool = False,
     db: Session = Depends(get_db),
 ) -> list[EmployeeLeaveAggregate]:
-    if (month is None) != (year is None):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="month dan year harus dikirim bersamaan.",
-        )
     return get_leave_aggregates_by_employee(
         db,
+        period_type=period_type,
         month=month,
         year=year,
         date_from=date_from,
