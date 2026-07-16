@@ -4,7 +4,7 @@
   <img src="public/berlaris-logo.png" alt="Berlaris Kopi & Resto" width="180" />
 </p>
 
-BerlarisApp adalah aplikasi admin full-stack untuk pengelolaan karyawan dan pencatatan cuti langsung. Sistem tidak memiliki workflow pengajuan atau approval.
+BerlarisApp adalah aplikasi admin untuk pengelolaan karyawan dan pencatatan cuti langsung. Sistem tidak memiliki workflow pengajuan atau approval.
 
 Repository tujuan: [github.com/dioariaa/berlarisapp](https://github.com/dioariaa/berlarisapp)
 
@@ -18,145 +18,37 @@ cd berlarisapp
 ## Stack dan keamanan
 
 - React, TypeScript, Vite
-- FastAPI, Pydantic, SQLAlchemy, Alembic
-- PostgreSQL Supabase atau Neon
-- JWT Bearer authentication
-- Password hashing bcrypt dengan cost 12
-- Role `admin` dan `superadmin`
-- Audit log PostgreSQL JSONB
-- Export Excel dengan openpyxl
+- Supabase (Postgres, Auth, Row Level Security, Postgres Functions/RPC)
+- Frontend berbicara langsung ke Supabase lewat `@supabase/supabase-js` — tidak ada backend server terpisah yang perlu di-host
+- Autentikasi Supabase Auth (bcrypt di sisi Supabase, JWT dikelola otomatis oleh Supabase)
+- Role `admin` dan `superadmin`, disimpan di tabel `profiles` dan ditegakkan lewat RLS + RPC `SECURITY DEFINER`
+- Audit log PostgreSQL JSONB, ditulis dari dalam RPC (bukan dari client) sehingga tidak bisa dipalsukan dari browser
+- Export Excel dibuat di sisi client dengan `exceljs`
 
-## Environment backend
+## Arsitektur
 
-Buat `backend/.env` dari `backend/.env.example`.
+Semua logic yang dulunya ada di backend FastAPI (validasi, deteksi overlap cuti, proteksi "last superadmin", audit log) sekarang berupa Postgres RPC function bertipe `SECURITY DEFINER` di project Supabase. RLS membatasi `SELECT` langsung dari client hanya untuk user admin/superadmin yang aktif, dan operasi tulis (`INSERT`/`UPDATE`/`DELETE`) ditolak di level tabel — satu-satunya jalan menulis data adalah lewat RPC tersebut, yang memvalidasi role sebelum mengeksekusi.
 
-```env
-ENVIRONMENT=production
-DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
-CORS_ORIGINS=https://admin.example.com
-FRONTEND_URL=https://admin.example.com
-BACKEND_URL=https://api.example.com
-TRUSTED_HOSTS=api.example.com
-FORCE_HTTPS=true
+Fungsi-fungsi utama yang ada di project Supabase:
 
-JWT_SECRET_KEY=hasilkan-secret-acak-minimal-32-karakter
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+- `create_employee`, `update_employee`, `delete_employee`
+- `create_leave`, `update_leave`, `delete_leave`
+- `create_user`, `update_user`, `deactivate_user`
+- `dashboard_summary`, `leave_summary`, `leaves_by_employee`
+- `log_export`, `log_login_failed`, `log_login_inactive`, `login_success`, `logout_event`, `me`
 
-FIRST_SUPERADMIN_NAME=Nama Superadmin
-FIRST_SUPERADMIN_EMAIL=superadmin@example.com
-FIRST_SUPERADMIN_PASSWORD=password-kuat
-FIRST_SUPERADMIN_OVERWRITE_PASSWORD=false
+Karena tidak ada backend yang perlu di-deploy, satu-satunya bagian yang perlu di-hosting adalah frontend statis (Vite build) — misalnya di Vercel atau Netlify.
 
-APP_NAME=BerlarisApp API
-DEBUG=false
-DATABASE_POOL_SIZE=5
-DATABASE_MAX_OVERFLOW=10
-```
-
-Gunakan secret acak, misalnya:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-Jangan pernah memasukkan `JWT_SECRET_KEY`, password database, atau password superadmin ke environment frontend.
-
-## Supabase dan Neon
-
-### Supabase
-
-Salin PostgreSQL connection string dari **Project Settings → Database**. Untuk Alembic gunakan Direct connection atau Session pooler, bukan transaction pooler.
-
-```env
-DATABASE_URL=postgresql+psycopg://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?sslmode=require
-```
-
-Jika direct connection Supabase mengalami kendala IPv6, gunakan Session pooler.
-
-### Neon
-
-```env
-DATABASE_URL=postgresql+psycopg://USER:PASSWORD@ep-example.REGION.aws.neon.tech/neondb?sslmode=require
-```
-
-URL `postgres://` dan `postgresql://` dinormalisasi otomatis ke driver Psycopg.
-
-## Instalasi dan migration backend
-
-```bash
-cd backend
-python -m venv .venv
-```
-
-Windows:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-python -m alembic upgrade head
-```
-
-macOS/Linux:
-
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python -m alembic upgrade head
-```
-
-Migration membuat tabel `employees`, `employee_leaves`, `users`, dan `audit_logs`, serta enum jenis cuti dan role.
-
-## Seed superadmin pertama
-
-Setelah migration dan environment superadmin terisi:
-
-```bash
-cd backend
-python -m app.seed_superadmin
-```
-
-Seed bersifat idempotent. Jika email sudah ada, password tidak diubah kecuali:
-
-```env
-FIRST_SUPERADMIN_OVERWRITE_PASSWORD=true
-```
-
-Setelah berhasil, ubah kembali flag tersebut menjadi `false` dan hapus password bootstrap dari environment deployment jika platform operasional memungkinkan.
-
-## Menjalankan backend
-
-Development:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Production:
-
-```bash
-python -m alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"
-```
-
-Dokumentasi API:
-
-- `/docs`
-- `/redoc`
-- `/health`
-
-Health check turut memvalidasi koneksi database.
-
-## Frontend
+## Environment frontend
 
 Buat `.env` dari `.env.example`:
 
 ```env
-VITE_API_BASE_URL=https://api.example.com
-VITE_API_TIMEOUT_MS=15000
+VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxx
 ```
+
+`VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` bersifat publik by design (dilindungi oleh RLS dan RPC di sisi Supabase, bukan oleh kerahasiaan key), jadi aman muncul di bundle frontend. Jangan pernah menaruh `service_role` key di frontend.
 
 Jalankan:
 
@@ -172,7 +64,14 @@ npm run lint
 npm run build
 ```
 
-Token JWT disimpan pada `sessionStorage`, bukan `localStorage`; sesi terisolasi per tab dan dibersihkan saat logout atau ketika API mengembalikan `401`. Karena token Bearer dapat diakses JavaScript, frontend menerapkan header keamanan deployment dan menghindari penyisipan HTML mentah.
+Sesi login dikelola oleh Supabase Auth dan disimpan pada `sessionStorage` (bukan `localStorage`), sehingga sesi terisolasi per tab dan hilang saat tab ditutup atau logout.
+
+## Setup database Supabase
+
+1. Buat project Supabase baru (atau gunakan yang sudah ada).
+2. Jalankan migration SQL yang membuat: enum `user_role` dan `leave_type`, tabel `profiles`, `employees`, `employee_leaves`, `audit_logs`, helper function `is_admin()`/`is_superadmin()`, RLS policy untuk `SELECT`, serta seluruh RPC function di atas.
+3. Buat superadmin pertama secara manual (insert ke `auth.users` + `auth.identities` + `public.profiles` dengan role `superadmin`), karena `create_user` RPC mensyaratkan pemanggil sudah superadmin.
+4. Salin `Project URL` dan `anon`/`publishable` key dari **Project Settings → API** ke `.env` frontend.
 
 ## Role
 
@@ -191,7 +90,7 @@ Token JWT disimpan pada `sessionStorage`, bukan `localStorage`; sesi terisolasi 
 - Melihat audit log
 - Export audit log
 
-Backend tetap menjadi sumber kebenaran authorization. Menyembunyikan menu frontend bukan pengganti role guard API.
+RLS dan RPC di Supabase tetap menjadi sumber kebenaran authorization. Menyembunyikan menu frontend bukan pengganti pengecekan role di RPC.
 
 ## Audit log
 
@@ -203,96 +102,38 @@ Audit log mencatat:
 - Create/update/deactivate user
 - Export Excel
 
-Snapshot sebelum dan sesudah perubahan disimpan sebagai JSONB. Endpoint audit hanya menyediakan operasi baca; tidak ada endpoint update atau delete audit log.
+Snapshot sebelum dan sesudah perubahan disimpan sebagai JSONB. Tabel `audit_logs` hanya bisa dibaca lewat RLS (khusus superadmin); penulisan hanya terjadi dari dalam RPC `SECURITY DEFINER`, tidak ada endpoint update atau delete.
 
 ## Export Excel
 
-- `GET /exports/employees.xlsx`
-- `GET /exports/employee-leaves.xlsx`
-- `GET /exports/audit-logs.xlsx` — superadmin
+Export dibuat langsung di browser memakai `exceljs`, dari data yang sudah diambil lewat Supabase (dibatasi RLS). Setiap export tetap memanggil RPC `log_export` supaya tercatat di audit log:
 
-Export cuti mendukung `month`, `year`, `date_from`, `date_to`, `employee_id`, dan `leave_type`. Aktivitas export dicatat pada audit log.
-
-## Endpoint auth dan user
-
-- `POST /auth/login`
-- `GET /auth/me`
-- `POST /auth/logout`
-- `GET|POST /users` — superadmin
-- `PUT|DELETE /users/{id}` — superadmin
-
-Endpoint dashboard, karyawan, cuti, dan export wajib Bearer token.
+- Data karyawan
+- Data cuti karyawan (mendukung filter `month`, `year`, `date_from`, `date_to`, `employee_id`, `leave_type`)
+- Audit log — superadmin
 
 ## Analitik dan rekap cuti
 
-Dashboard dan rekap karyawan menggunakan periode yang sama:
+Dashboard dan rekap karyawan menggunakan periode yang sama lewat RPC `dashboard_summary` dan `leaves_by_employee`:
 
-- Tahunan: `GET /dashboard/summary?period_type=yearly&year=2026`
-- Bulanan: `GET /dashboard/summary?period_type=monthly&month=6&year=2026`
-- Rentang tanggal: `GET /dashboard/summary?period_type=custom&date_from=2026-01-01&date_to=2026-06-30`
-- Rekap karyawan: `GET /employee-leaves/by-employee` dengan query periode yang sama
+- Tahunan, bulanan, atau rentang tanggal custom
+- `include_zero=true` untuk menyertakan seluruh karyawan aktif yang belum memiliki cuti
+- Jumlah hari dihitung berdasarkan irisan tanggal cuti dengan periode aktif, termasuk cuti yang melintasi bulan atau tahun
 
-Tambahkan `include_zero=true` pada endpoint rekap untuk menyertakan seluruh karyawan aktif yang belum memiliki cuti. Jumlah hari dihitung berdasarkan irisan tanggal cuti dengan periode aktif, termasuk cuti yang melintasi bulan atau tahun.
+## Deployment
 
-## Deployment HTTPS
-
-### Railway
-
-1. Buat service dari folder `backend`.
-2. Gunakan Dockerfile atau start command pada `backend/Procfile`.
-3. Isi seluruh environment backend.
-4. Set health check ke `/health`.
-5. Pastikan domain backend masuk `TRUSTED_HOSTS`.
-
-### Render
-
-- Root directory: `backend`
-- Build: `pip install -r requirements.txt`
-- Start:
-
-```bash
-python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
-```
-
-### Fly.io
-
-Gunakan `backend/Dockerfile`, simpan secret melalui `fly secrets set`, dan jalankan migration sebelum release.
-
-### Vercel atau Netlify
-
-Deploy root frontend. Konfigurasi dasar tersedia di `vercel.json` dan `netlify.toml`. Isi:
+Deploy root frontend ke platform static hosting apa pun (Vercel, Netlify, dsb). Tidak ada backend yang perlu dijalankan terpisah — cukup pastikan env var `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` terisi di platform hosting.
 
 ```env
-VITE_API_BASE_URL=https://api.example.com
-```
-
-Jika frontend menggunakan HTTPS, backend wajib HTTPS. Browser akan memblokir API HTTP karena mixed content.
-
-## Verifikasi
-
-Backend:
-
-```bash
-cd backend
-pytest -q
-python -m compileall app alembic
-python -m alembic upgrade head --sql
-```
-
-Frontend:
-
-```bash
-npm run lint
-npm run build
+VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxx
 ```
 
 ## Troubleshooting
 
-- `401 Unauthorized`: token tidak ada, tidak valid, kedaluwarsa, atau user sudah dinonaktifkan. Login kembali.
-- `403 Forbidden`: role akun tidak cukup untuk endpoint tersebut.
-- CORS error: pastikan origin frontend lengkap, termasuk skema HTTPS, ada di `CORS_ORIGINS`.
-- Token expired: frontend membersihkan sesi dan mengarahkan kembali ke halaman login.
-- Database connection failed: periksa `DATABASE_URL`, SSL, allowlist jaringan, dan status Supabase/Neon.
-- `Invalid host header`: tambahkan hostname backend ke `TRUSTED_HOSTS`.
-- Mixed content: jangan panggil API HTTP dari frontend HTTPS.
-- Migration gagal di Supabase: gunakan Direct connection atau Session pooler, bukan transaction pooler.
+- Login gagal dengan pesan "Email atau password tidak valid": kredensial salah, atau user belum ada di `auth.users`/`profiles`.
+- "Akun tidak aktif": `profiles.is_active` bernilai `false`. Aktifkan lewat superadmin lain atau langsung di database.
+- `FORBIDDEN` dari RPC: role akun tidak cukup untuk aksi tersebut — cek `profiles.role`.
+- Data tidak muncul padahal sudah login: pastikan baris `profiles` untuk user tersebut ada dan `role`/`is_active` benar, karena RLS bergantung pada tabel ini.
+- "Tidak dapat terhubung ke server": cek `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` sudah benar dan project Supabase tidak sedang paused (project gratis Supabase auto-pause setelah tidak aktif dalam waktu lama).
+- Export Excel gagal: pastikan browser tidak memblokir download otomatis (popup/download blocker).
